@@ -21,17 +21,15 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.squareup.picasso.Picasso
 
-class RecyclerViewAdapter : RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder> {
-    private lateinit var currentUser: FirebaseUser
-    private lateinit var keyList: List<String>
-    private lateinit var key_to_Post: HashMap<String, PostModel>
+class RecyclerViewAdapter(
+    private var key_to_Post: HashMap<String, PostModel>,
+    private var keyList: List<String>,
+    private var itemClickListener: ItemClickListener
+) : RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder>() {
+    private var currentUser: FirebaseUser
     private var currentMarker: Marker? = null
-    private lateinit var itemClickListener: ItemClickListener
 
-    constructor(key_to_Post: HashMap<String, PostModel>, keyList: List<String>, itemClickListener: ItemClickListener) {
-        this.key_to_Post = key_to_Post
-        this.keyList = keyList
-        this.itemClickListener = itemClickListener
+    init {
         val mAuth = FirebaseAuth.getInstance()
         this.currentUser = mAuth.currentUser!!
     }
@@ -48,21 +46,39 @@ class RecyclerViewAdapter : RecyclerView.Adapter<RecyclerViewAdapter.ViewHolder>
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val db = FirebaseDatabase.getInstance()
         val firestoreDb = FirebaseFirestore.getInstance()
+
+        // this should renove nulls
+        key_to_Post = key_to_Post.filterValues { it != null } as HashMap<String, PostModel>
+        keyList = keyList.filter { key_to_Post[it] != null }
+        Log.d("RecyclerViewAdapter", "Lengths: k2p ${key_to_Post.size} kl ${keyList.size}")
+
         val u: PostModel = key_to_Post[keyList[position]]!!
         val imagePostRef = firestoreDb.collection("ImagePosts").document(u.postKey)
         val uid = u.uid
+        Log.d("RecyclerViewAdapter", "Sanity-check: Post: $u")
         holder.uRef = db.getReference("Users").child(uid)
         holder.uRef!!.addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 val user = snapshot.getValue(User::class.java)
-                holder.fNameView.text =
-                    holder.fNameView.context.getString(R.string.holder_first_name, user!!.displayName)
-                holder.emailView.text = holder.fNameView.context.getString(R.string.holder_email, user.email)
-                holder.phoneView.text =
-                    holder.fNameView.context.getString(R.string.holder_phone_num, user.phone)
-                holder.dateView.text = holder.fNameView.context.getString(R.string.holder_date_created, u.date)
-                if (snapshot.child("profileImage").exists()) {
-                    Picasso.get().load("profilePicture")
+                if (user == null) {
+                    Log.e("RecyclerViewAdapter", "User is null (uid: $uid)")
+                } else {
+                    Log.d("RecyclerViewAdapter", "User: $user")
+                    holder.fNameView.text =
+                        holder.fNameView.context.getString(
+                            R.string.holder_first_name,
+                            user.displayName
+                        )
+                    holder.emailView.text =
+                        holder.fNameView.context.getString(R.string.holder_email, user.email)
+                    holder.phoneView.text =
+                        holder.fNameView.context.getString(R.string.holder_phone_num, user.phone)
+                    holder.dateView.text =
+                        holder.fNameView.context.getString(R.string.holder_date_created, u.date)
+                }
+                if (snapshot.child("profilePicture").exists()) {
+                    val profilePicUrl = snapshot.child("profilePicture").value.toString()
+                    Picasso.get().load(profilePicUrl)
                         .transform(CircleTransform())
                         .into(holder.profileImage)
                     holder.profileImage.visibility = View.VISIBLE

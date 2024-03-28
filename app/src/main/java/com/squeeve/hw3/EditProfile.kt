@@ -1,5 +1,6 @@
 package com.squeeve.hw3
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -37,6 +38,7 @@ class EditProfile : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
     private lateinit var usersRef: DatabaseReference
     private lateinit var profileImage: ImageView
     private var currentPhotoPath: String = ""
+    private var capturedImageUri: Uri? = null
     /*
     private val REQUEST_FOR_CAMERA = 9 // 0011 in the original code
     private val OPEN_FILE = 10 // 0012 in the original code
@@ -56,7 +58,10 @@ class EditProfile : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         }}
 
     private fun onActivityResult(result: ActivityResult) {
-        if (result.data == null) {
+        if (result.resultCode == Activity.RESULT_OK && capturedImageUri != null) {
+            imageUri = capturedImageUri
+            uploadImage()
+        } else {
             Toast.makeText(this, "Couldn't capture this image. Please try again.", Toast.LENGTH_SHORT).show()
         }
     }
@@ -97,6 +102,7 @@ class EditProfile : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
                         Picasso.get().load(uri.toString())
                             .transform(CircleTransform())
                             .into(profileImage)
+                        Log.d("EditProfile", "Profile picture should be saved @ $uri")
                     }
                 }.addOnFailureListener { e ->
                     Toast.makeText(
@@ -140,6 +146,7 @@ class EditProfile : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         try {
             photoFile = UserHome.createImageFile(this)
             currentPhotoPath = photoFile.absolutePath
+            Log.d("EditProfile", "Profile photo @ $currentPhotoPath")
         } catch (ex: IOException) {
             Log.e("UserHome", "Error creating image file: ${ex.message}")
         }
@@ -151,6 +158,7 @@ class EditProfile : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
 
         // Continue only if the File was successfully created
         val photoURI: Uri = FileProvider.getUriForFile(this, "com.squeeve.hw3.fileprovider", photoFile)
+        capturedImageUri = photoURI
         takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI)
 
         // Ensure that there's a camera activity to handle the intent

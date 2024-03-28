@@ -4,17 +4,22 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.firebase.geofire.GeoFire
+import com.firebase.geofire.GeoLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.firestore.FieldValue
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
 import java.io.File
@@ -77,23 +82,42 @@ class PhotoPreview : AppCompatActivity() {
         mFusedLocationClient.lastLocation.addOnSuccessListener { location ->
                 val storage = FirebaseStorage.getInstance()
                 val fileNameInStorage = UUID.randomUUID().toString()
-                val imageRef = storage.getReference("images/$fileNameInStorage.jpg")
+                val imageRef = storage.getReference("/images/$fileNameInStorage.jpg")
                 val lat = location.latitude.toString()
                 val lng = location.longitude.toString()
                 val metadata = StorageMetadata.Builder()
                     .setContentType("image/jpg")
                     .setCustomMetadata("photoLng", lng)
                     .setCustomMetadata("photoLat", lat)
-                    .setCustomMetadata("locationKe", "test")
                     .setCustomMetadata("uid", currentUser.uid)
-                    .setCustomMetadata("description", description.text.toString())
+                    .setCustomMetadata("alt-text", description.text.toString())
                     .build()
                 imageRef.putFile(uri, metadata).addOnSuccessListener {
-                    Toast.makeText(
-                        this@PhotoPreview,
-                        "Image uploaded successfully. Your image will appear shortly.",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Log.d("PhotoPreview", "Image uploaded successfully; now uploading PostModel.")
+                    val post = Post(
+                        uid = currentUser.uid,
+                        url = "images/$fileNameInStorage.jpg",
+                        description = description.text.toString(),
+                        lat = lat,
+                        lng = lng
+                    )
+                    val firestoreDb = FirebaseFirestore.getInstance()
+                    firestoreDb.collection("ImagePosts").document(fileNameInStorage).set(post)
+                        .addOnSuccessListener {
+                            Toast.makeText(
+                                this@PhotoPreview,
+                                "Post uploaded successfully. Your post will appear shortly.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            val geoFire = GeoFire(FirebaseDatabase.getInstance().getReference("/geofire"))
+                            geoFire.setLocation(fileNameInStorage, GeoLocation(location.latitude, location.longitude))
+                        }.addOnFailureListener { e ->
+                            Toast.makeText(
+                                this@PhotoPreview,
+                                "Failed to upload post: ${e.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                 }
             }.addOnFailureListener { e ->
                 Toast.makeText(
@@ -110,13 +134,13 @@ class PhotoPreview : AppCompatActivity() {
     }
 
     data class Post(
-        var uid: String,
-        var url: String,
-        var timestamp: FieldValue = FieldValue.serverTimestamp(),
-        var description: String,
+        var uid: String = "",
+        var url: String = "",
+        var timestamp: MutableMap<String, String> = ServerValue.TIMESTAMP,
+        var description: String = "",
         var likeCount: Int = 0,
-        var lat: String,
-        var lng: String,
+        var lat: String = "",
+        var lng: String = "",
         var likes: MutableMap<String, Boolean> = HashMap()
     )
 }

@@ -23,6 +23,7 @@ import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.firebase.geofire.GeoFire
+import com.firebase.geofire.GeoLocation
 import com.firebase.geofire.GeoQuery
 import com.firebase.geofire.GeoQueryDataEventListener
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -66,7 +67,6 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
     private lateinit var mLocationRequest: LocationRequest
     private lateinit var mAuth: FirebaseAuth
     private lateinit var currentUser: FirebaseUser
-    private var imageUri: Uri? = null
     private lateinit var myRecyclerAdapter : RecyclerViewAdapter
     private val db = FirebaseDatabase.getInstance()
     private val firestore_db = FirebaseFirestore.getInstance()
@@ -102,33 +102,33 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
     }
 
     fun newLocation(lastLocation: Location) {
-        Log.d("UserHome", "newLocation: Am I making it here?")
+        // If we have a geoQuery, update the location. Otherwise, query the new GeoLocation.
         if (geoQuery != null) {
-            geoQuery!!.center = com.firebase.geofire.GeoLocation(lastLocation.latitude, lastLocation.longitude)
+            geoQuery!!.center = GeoLocation(lastLocation.latitude, lastLocation.longitude)
         } else {
-            Log.d("UserHome", "CONTRARY TO EXPECTATIONS, GEOQUERY IS NULL.")
-            geoQuery = geoFire.queryAtLocation(
-                com.firebase.geofire.GeoLocation(lastLocation.latitude, lastLocation.longitude),
+            geoQuery = geoFire.queryAtLocation(GeoLocation(lastLocation.latitude, lastLocation.longitude),
                 10.0
             )
             geoQuery!!.addGeoQueryDataEventListener(object : GeoQueryDataEventListener {
-                override fun onDataEntered(snapshot: DataSnapshot, location: com.firebase.geofire.GeoLocation) {
+                override fun onDataEntered(snapshot: DataSnapshot, location: GeoLocation) {
                     val postKey: String = snapshot.key!!
                     if (key_to_Post.containsKey(postKey)) {
                         return
                     }
                     firestore_db.collection("ImagePosts").document(postKey).get().addOnSuccessListener { docSnap ->
-                        Log.i("UserHome", "Got post with key: $docSnap")
-                        val post = docSnap.toObject(PostModel::class.java)
+                        Log.i("UserHome", "onDataEntered: Got post with key: $docSnap")
+                        val latValue = docSnap.get("lat")?.toString()?.toDoubleOrNull() ?: 0.0
+                        val lngValue = docSnap.get("lng")?.toString()?.toDoubleOrNull() ?: 0.0
                         val temp = mMap.addMarker(MarkerOptions()
-                            .position(LatLng((docSnap.get("lat").toString().toDouble()), docSnap.get("lon").toString().toDouble()))
+                            .position(LatLng(latValue, lngValue))
                             .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey)))
+
                         val postModel = PostModel(
+                            docSnap.id,
                             docSnap.get("uid").toString(),
                             docSnap.get("description").toString(),
                             docSnap.get("url").toString(),
                             docSnap.getDate("timestamp").toString(),
-                            docSnap.id,
                             temp!!)
                         key_to_Post[docSnap.id] = postModel
                         keyList.add(docSnap.id)
@@ -140,10 +140,18 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
                     }
                 }
 
-                override fun onDataExited(dSnap: DataSnapshot) {}
-                override fun onDataMoved(dSnap: DataSnapshot, location: com.firebase.geofire.GeoLocation) {}
-                override fun onDataChanged(dSnap: DataSnapshot, location: com.firebase.geofire.GeoLocation) {}
-                override fun onGeoQueryReady() {}
+                override fun onDataExited(dSnap: DataSnapshot) {
+                    Log.i("UserHome", "onDataExited: ${dSnap.key}")
+                }
+                override fun onDataMoved(dSnap: DataSnapshot, location: GeoLocation) {
+                    Log.i("UserHome", "onDataMoved: ${dSnap.key}")
+                }
+                override fun onDataChanged(dSnap: DataSnapshot, location: GeoLocation) {
+                    Log.i("UserHome", "onDataChanged: ${dSnap.key}")
+                }
+                override fun onGeoQueryReady() {
+                    Log.i("UserHome", "onGeoQueryReady: Finished querying geofire.")
+                }
                 override fun onGeoQueryError(e: DatabaseError) {
                     Log.e("UserHome", "Error querying geofire: ${e.message}")
                 }

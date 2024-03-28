@@ -11,6 +11,7 @@ import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ServerValue
 
 class LoginSignup : AppCompatActivity() {
     private lateinit var email: EditText
@@ -46,8 +47,8 @@ class LoginSignup : AppCompatActivity() {
     }
 
     private fun saveUserDataToDB() {
-        var db = FirebaseDatabase.getInstance()
-        var usersRef = db.getReference("Users")
+        val db = FirebaseDatabase.getInstance()
+        val usersRef = db.getReference("Users")
         usersRef.child(currentUser!!.uid).setValue(
             User(displayName.text.toString(), email.text.toString(), phoneNumber.text.toString())
         )
