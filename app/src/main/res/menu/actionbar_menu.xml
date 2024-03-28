@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+
+    <item
+        app:showAsAction="always"
+        android:id="@+id/go_to_map"
+        android:icon="@drawable/map_icon"
+        android:title="Map Icon">
+
+    </item>
+    <item
+        android:icon="@drawable/profile_icon"
+        app:showAsAction="always"
+        android:id="@+id/edit_profile"
+        android:title="Edit Profile">
+    </item>
+    <item
+        android:icon="@drawable/exit_icon"
+        app:showAsAction="always"
+        android:id="@+id/signout"
+        android:title="Sign Out">
+    </item>
+</menu>

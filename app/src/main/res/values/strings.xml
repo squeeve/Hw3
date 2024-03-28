@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Homework3</string>
+    <string name="firebase_demo">Homework 3</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="display_name">Display Name</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="signup">SIGNUP</string>
+    <string name="login">LOGIN</string>
+    <string name="reset_password">Reset Password</string>
+    <string name="resend_email_verification">Resend Email Verification</string>
+    <string name="_0_likes">0 likes</string>
+    <string name="title_activity_maps">MapsActivity</string>
+    <string name="holder_first_name">First Name: %1$s</string>
+    <string name="holder_email">Email: %1$s</string>
+    <string name="holder_phone_num">Phone Num: %1$s</string>
+    <string name="holder_date_created">Date Created: %1$s</string>"
+</resources>
