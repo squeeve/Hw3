@@ -117,21 +117,21 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
                     if (key_to_Post.containsKey(postKey)) {
                         return
                     }
-                    firestore_db.collection("ImagePosts").document(postKey).get().addOnSuccessListener { snapshot  ->
-                        val docSnap = snapshot.toObject(PhotoPreview.Post::class.java)
+                    firestore_db.collection("ImagePosts").document(postKey).get().addOnSuccessListener { snap  ->
+                        val docSnap = snap.toObject(PhotoPreview.Post::class.java)
                         Log.d("UserHome", "onDataEntered: That postKey got me this: $docSnap")
-                        val latValue = docSnap?.lat?.toString()?.toDoubleOrNull() ?: 0.0
-                        val lngValue = docSnap?.lng?.toString()?.toDoubleOrNull() ?: 0.0
+                        val latValue = docSnap?.lat?.toDoubleOrNull() ?: 0.0
+                        val lngValue = docSnap?.lng?.toDoubleOrNull() ?: 0.0
                         val temp = mMap.addMarker(MarkerOptions()
                             .position(LatLng(latValue, lngValue))
                             .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey)))
                         if (docSnap != null) {
                             val postModel = PostModel(
-                                docSnap.uid,
+                                postKey,
                                 docSnap.uid,
                                 docSnap.description,
                                 docSnap.url,
-                                snapshot.getTimestamp("timestamp")!!.toDate().toString(),
+                                docSnap.timestamp.toString(),
                                 temp!!
                             )
                             key_to_Post[docSnap.uid] = postModel

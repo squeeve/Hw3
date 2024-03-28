@@ -15,11 +15,12 @@ import com.firebase.geofire.GeoFire
 import com.firebase.geofire.GeoLocation
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ServerTimestamp
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
 import java.io.File
@@ -99,8 +100,7 @@ class PhotoPreview : AppCompatActivity() {
                         url = "images/$fileNameInStorage.jpg",
                         description = description.text.toString(),
                         lat = lat,
-                        lng = lng
-                    )
+                        lng = lng)
                     val firestoreDb = FirebaseFirestore.getInstance()
                     firestoreDb.collection("ImagePosts").document(fileNameInStorage).set(post)
                         .addOnSuccessListener {
@@ -141,6 +141,7 @@ class PhotoPreview : AppCompatActivity() {
         var lat: String = "",
         var lng: String = "",
         var likes: MutableMap<String, Boolean> = HashMap(),
-        var timestamp: FieldValue = FieldValue.serverTimestamp()
+        @ServerTimestamp
+        var timestamp: Timestamp? = null
     )
 }

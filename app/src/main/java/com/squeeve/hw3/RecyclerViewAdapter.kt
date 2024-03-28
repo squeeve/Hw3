@@ -52,7 +52,7 @@ class RecyclerViewAdapter(
         keyList = keyList.filter { key_to_Post[it] != null }
         Log.d("RecyclerViewAdapter", "key_to_Post: ${key_to_Post[keyList[position]]}")
         val u: PostModel = key_to_Post[keyList[position]]!!
-        val imagePostRef = firestoreDb.collection("ImagePosts").document(u.uid)
+        val imagePostRef = firestoreDb.collection("ImagePosts").document(u.postKey)
         val uid = u.uid
         Log.d("RecyclerViewAdapter", "Sanity-check: Post: $u")
         holder.uRef = db.getReference("Users").child(uid)
