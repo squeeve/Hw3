@@ -18,7 +18,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ServerValue
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
@@ -136,11 +136,11 @@ class PhotoPreview : AppCompatActivity() {
     data class Post(
         var uid: String = "",
         var url: String = "",
-        var timestamp: MutableMap<String, String> = ServerValue.TIMESTAMP,
         var description: String = "",
         var likeCount: Int = 0,
         var lat: String = "",
         var lng: String = "",
-        var likes: MutableMap<String, Boolean> = HashMap()
+        var likes: MutableMap<String, Boolean> = HashMap(),
+        var timestamp: FieldValue = FieldValue.serverTimestamp()
     )
 }

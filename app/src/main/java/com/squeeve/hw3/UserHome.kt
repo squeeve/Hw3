@@ -46,6 +46,7 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.File
 import java.io.IOException
@@ -112,29 +113,35 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
             geoQuery!!.addGeoQueryDataEventListener(object : GeoQueryDataEventListener {
                 override fun onDataEntered(snapshot: DataSnapshot, location: GeoLocation) {
                     val postKey: String = snapshot.key!!
+                    Log.d("UserHome", "onDataEntered: postKey = $postKey")
                     if (key_to_Post.containsKey(postKey)) {
                         return
                     }
-                    firestore_db.collection("ImagePosts").document(postKey).get().addOnSuccessListener { docSnap ->
-                        Log.i("UserHome", "onDataEntered: Got post with key: $docSnap")
-                        val latValue = docSnap.get("lat")?.toString()?.toDoubleOrNull() ?: 0.0
-                        val lngValue = docSnap.get("lng")?.toString()?.toDoubleOrNull() ?: 0.0
+                    firestore_db.collection("ImagePosts").document(postKey).get().addOnSuccessListener { snapshot  ->
+                        val docSnap = snapshot.toObject(PhotoPreview.Post::class.java)
+                        Log.d("UserHome", "onDataEntered: That postKey got me this: $docSnap")
+                        val latValue = docSnap?.lat?.toString()?.toDoubleOrNull() ?: 0.0
+                        val lngValue = docSnap?.lng?.toString()?.toDoubleOrNull() ?: 0.0
                         val temp = mMap.addMarker(MarkerOptions()
                             .position(LatLng(latValue, lngValue))
                             .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey)))
-
-                        val postModel = PostModel(
-                            docSnap.id,
-                            docSnap.get("uid").toString(),
-                            docSnap.get("description").toString(),
-                            docSnap.get("url").toString(),
-                            docSnap.getDate("timestamp").toString(),
-                            temp!!)
-                        key_to_Post[docSnap.id] = postModel
-                        keyList.add(docSnap.id)
-                        temp.tag = docSnap.id
-                        myRecyclerAdapter.notifyItemInserted(keyList.size - 1)
-                        recyclerView.scrollToPosition(keyList.size - 1)
+                        if (docSnap != null) {
+                            val postModel = PostModel(
+                                docSnap.uid,
+                                docSnap.uid,
+                                docSnap.description,
+                                docSnap.url,
+                                snapshot.getTimestamp("timestamp")!!.toDate().toString(),
+                                temp!!
+                            )
+                            key_to_Post[docSnap.uid] = postModel
+                            keyList.add(docSnap.uid)
+                            temp.tag = docSnap.uid
+                            myRecyclerAdapter.notifyItemInserted(keyList.size - 1)
+                            recyclerView.scrollToPosition(keyList.size - 1)
+                        } else {
+                            Log.d("UserHome", "docSnap is null; not adding to recyclerView")
+                        }
                     }.addOnFailureListener { e ->
                         Log.e("UserHome", "Error getting post ${e.message}")
                     }

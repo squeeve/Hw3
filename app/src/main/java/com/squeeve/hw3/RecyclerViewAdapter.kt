@@ -47,13 +47,12 @@ class RecyclerViewAdapter(
         val db = FirebaseDatabase.getInstance()
         val firestoreDb = FirebaseFirestore.getInstance()
 
-        // this should renove nulls
+        // this should remove nulls
         key_to_Post = key_to_Post.filterValues { it != null } as HashMap<String, PostModel>
         keyList = keyList.filter { key_to_Post[it] != null }
-        Log.d("RecyclerViewAdapter", "Lengths: k2p ${key_to_Post.size} kl ${keyList.size}")
-
+        Log.d("RecyclerViewAdapter", "key_to_Post: ${key_to_Post[keyList[position]]}")
         val u: PostModel = key_to_Post[keyList[position]]!!
-        val imagePostRef = firestoreDb.collection("ImagePosts").document(u.postKey)
+        val imagePostRef = firestoreDb.collection("ImagePosts").document(u.uid)
         val uid = u.uid
         Log.d("RecyclerViewAdapter", "Sanity-check: Post: $u")
         holder.uRef = db.getReference("Users").child(uid)
@@ -97,7 +96,8 @@ class RecyclerViewAdapter(
             }
             val post = value?.toObject(PhotoPreview.Post::class.java)
             if (post != null) {
-                val pathRef = FirebaseStorage.getInstance().getReference("images/${u.url}")
+                val pathRef = FirebaseStorage.getInstance().getReference(u.url)
+                Log.d("RecyclerViewAdapter", "About to retrieve picture from ${u.url}")
                 pathRef.downloadUrl.addOnSuccessListener {
                     Picasso.get().load(it).into(holder.imageView)
                 }
