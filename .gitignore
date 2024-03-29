@@ -1,6 +1,7 @@
 *.iml
 .gradle
 google-services.json
+project-*.json
 /local.properties
 /.idea
 .DS_Store

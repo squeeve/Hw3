@@ -47,10 +47,6 @@ class RecyclerViewAdapter(
         val db = FirebaseDatabase.getInstance()
         val firestoreDb = FirebaseFirestore.getInstance()
 
-        // this should remove nulls
-        key_to_Post = key_to_Post.filterValues { it != null } as HashMap<String, PostModel>
-        keyList = keyList.filter { key_to_Post[it] != null }
-        Log.d("RecyclerViewAdapter", "key_to_Post: ${key_to_Post[keyList[position]]}")
         val u: PostModel = key_to_Post[keyList[position]]!!
         val imagePostRef = firestoreDb.collection("ImagePosts").document(u.postKey)
         val uid = u.uid
@@ -101,6 +97,7 @@ class RecyclerViewAdapter(
                 pathRef.downloadUrl.addOnSuccessListener {
                     Picasso.get().load(it).into(holder.imageView)
                 }
+                holder.descriptionView.text = u.description
                 holder.likeCount.text = String.format("%d Likes", post.likeCount)
                 if (post.likes.getOrDefault(currentUser.uid, false)) {
                     holder.likeBtn.setImageDrawable(ContextCompat.getDrawable(holder.likeBtn.context, R.drawable.like_active))
@@ -129,17 +126,15 @@ class RecyclerViewAdapter(
                 transaction.update(imagePostRef, "likes", post.likes)
                 null
             }
-
-            holder.descriptionView.text = u.description
+        }
             
-            holder.imageView.setOnClickListener {
-                if (currentMarker != null)  {
-                    currentMarker!!.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey))
-                }
-                u.m.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.marker_red))
-                currentMarker = u.m
-                itemClickListener.onItemClick(currentMarker!!.position)
+        holder.imageView.setOnClickListener {
+            if (currentMarker != null)  {
+                currentMarker!!.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey))
             }
+            u.m.setIcon(BitmapDescriptorFactory.fromResource(R.drawable.marker_red))
+            currentMarker = u.m
+            itemClickListener.onItemClick(currentMarker!!.position)
         }
     }
 
