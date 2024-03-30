@@ -9,5 +9,6 @@ project-*.json
 /captures
 .externalNativeBuild
 .cxx
+*/venv/*
 local.properties
 secrets.properties

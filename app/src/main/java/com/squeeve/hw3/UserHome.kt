@@ -1,3 +1,5 @@
+@file:Suppress("LocalVariableName")
+
 package com.squeeve.hw3
 
 import android.Manifest
@@ -46,7 +48,8 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.DocumentChange
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import java.io.File
 import java.io.IOException
@@ -59,7 +62,6 @@ import kotlin.Int
 import kotlin.IntArray
 import kotlin.String
 import kotlin.Throws
-import kotlin.toString
 
 class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
     private lateinit var locationCallback: LocationCallback
@@ -102,6 +104,55 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
         }
     }
 
+    fun addPostModelToView(postKey: String, snap: DocumentSnapshot) {
+        // Add the post to the recyclerView; of note, keyList is the list of postKeys
+        // and key_to_Post maps the postKey in keyList to a PostModel object
+        if (key_to_Post.containsKey(postKey)) {
+            return
+        }
+        val docSnap = snap.toObject(PhotoPreview.Post::class.java)
+        val latValue = docSnap?.lat?.toDoubleOrNull() ?: 0.0
+        val lngValue = docSnap?.lng?.toDoubleOrNull() ?: 0.0
+        val temp = mMap.addMarker(MarkerOptions()
+            .position(LatLng(latValue, lngValue))
+            .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey)))
+        if (docSnap != null) {
+            val postModel = PostModel(
+                postKey,
+                docSnap.uid,
+                docSnap.description,
+                docSnap.url,
+                docSnap.timestamp!!.toDate().toString(),
+                temp!!
+            )
+            key_to_Post[postKey] = postModel
+            keyList.add(postKey)
+            temp.tag = docSnap.uid
+            myRecyclerAdapter.notifyItemInserted(keyList.size - 1)
+            recyclerView.scrollToPosition(keyList.size - 1)
+        } else {
+            Log.d("UserHome", "docSnap is null; not adding to recyclerView")
+        }
+    }
+
+    fun removePostModel(postKey: String, snap: DocumentSnapshot) {
+        // Remove the post from the recyclerView
+        val index = keyList.indexOf(snap.id!!)
+        if (index == -1) {
+            Log.d("UserHome", "removePostModel: Could not find post to remove.")
+            return
+        }
+        val dSnap = snap.toObject(PhotoPreview.Post::class.java)
+        if (dSnap == null) {
+            Log.e("UserHome", "removePostModel: Could not convert snap ${snap.id} to PostModel.")
+            return
+        }
+        key_to_Post[postKey]?.m?.remove()
+        keyList.removeAt(index)
+        key_to_Post.remove(postKey)
+        myRecyclerAdapter.notifyItemRemoved(keyList.indexOf(postKey))
+    }
+
     fun newLocation(lastLocation: Location) {
         // If we have a geoQuery, update the location. Otherwise, query the new GeoLocation.
         if (geoQuery != null) {
@@ -112,58 +163,66 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
             )
             geoQuery!!.addGeoQueryDataEventListener(object : GeoQueryDataEventListener {
                 override fun onDataEntered(snapshot: DataSnapshot, location: GeoLocation) {
+                    // Triggered when a new post is added to the database
+                    // Add the post to the recyclerView
                     val postKey: String = snapshot.key!!
                     Log.d("UserHome", "onDataEntered: postKey = $postKey")
                     if (key_to_Post.containsKey(postKey)) {
                         return
                     }
-                    firestore_db.collection("ImagePosts").document(postKey).get().addOnSuccessListener { snap  ->
-                        val docSnap = snap.toObject(PhotoPreview.Post::class.java)
-                        Log.d("UserHome", "onDataEntered: That postKey got me this: $docSnap")
-                        val latValue = docSnap?.lat?.toDoubleOrNull() ?: 0.0
-                        val lngValue = docSnap?.lng?.toDoubleOrNull() ?: 0.0
-                        val temp = mMap.addMarker(MarkerOptions()
-                            .position(LatLng(latValue, lngValue))
-                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.marker_grey)))
-                        if (docSnap != null) {
-                            val postModel = PostModel(
-                                postKey,
-                                docSnap.uid,
-                                docSnap.description,
-                                docSnap.url,
-                                docSnap.timestamp.toString(),
-                                temp!!
-                            )
-                            key_to_Post[docSnap.uid] = postModel
-                            keyList.add(docSnap.uid)
-                            temp.tag = docSnap.uid
-                            myRecyclerAdapter.notifyItemInserted(keyList.size - 1)
-                            recyclerView.scrollToPosition(keyList.size - 1)
-                        } else {
-                            Log.d("UserHome", "docSnap is null; not adding to recyclerView")
+                    Log.d("UserHome", "onDataEntered: That postKey got me this: $snapshot")
+                    firestore_db.collection("ImagePosts")
+                        .document(postKey).get().addOnSuccessListener { snap  ->
+                            addPostModelToView(postKey, snap)
+                        }.addOnFailureListener { e ->
+                            Log.e("UserHome", "Error getting post ${e.message}")
                         }
-                    }.addOnFailureListener { e ->
-                        Log.e("UserHome", "Error getting post ${e.message}")
-                    }
                 }
 
                 override fun onDataExited(dSnap: DataSnapshot) {
-                    Log.i("UserHome", "onDataExited: ${dSnap.key}")
+                    // Triggered when a post is removed from the database
+                    // Remove the post from the recyclerView
+                    val index = keyList.indexOf(dSnap.key!!)
+                    Log.i("UserHome", "onDataExited: Removing ${dSnap.key} @ $index")
+                    firestore_db.collection("ImagePosts")
+                        .document(dSnap.key!!).get().addOnSuccessListener { snap ->
+                            removePostModel(snap)
+                        }.addOnFailureListener { e ->
+                            Log.e("UserHome", "Error getting post ${e.message}")
+                        }
                 }
                 override fun onDataMoved(dSnap: DataSnapshot, location: GeoLocation) {
-                    Log.i("UserHome", "onDataMoved: ${dSnap.key}")
+                    // Triggered when a post is moved in the database, or I have moved.
+                    Log.i("UserHome", "onDataMoved: ${dSnap.key} @ (${location.latitude}, ${location.longitude})")
+                    // If distance of snaps is greater than 10km, remove the post from the recyclerView
+
                 }
                 override fun onDataChanged(dSnap: DataSnapshot, location: GeoLocation) {
-                    Log.i("UserHome", "onDataChanged: ${dSnap.key}")
+                    // Triggered when a post is changed in the database or when the location changes
+                    Log.i("UserHome", "onDataChanged: ${dSnap.key} @ (${location.latitude}, ${location.longitude})")
                 }
                 override fun onGeoQueryReady() {
+                    // Triggered when location query is finished
                     Log.i("UserHome", "onGeoQueryReady: Finished querying geofire.")
+                    // Update the recyclerView with the new posts
+
                 }
                 override fun onGeoQueryError(e: DatabaseError) {
+                    // Triggered when there is an error querying the database
                     Log.e("UserHome", "Error querying geofire: ${e.message}")
                 }
             })
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        mFusedLocationClient.removeLocationUpdates(locationCallback)
+        val sharedPreferences = getSharedPreferences("location", Context.MODE_PRIVATE)
+        val editor = sharedPreferences.edit()
+        editor.putFloat("latitude", mMap.cameraPosition.target.latitude.toFloat())
+        editor.putFloat("longitude", mMap.cameraPosition.target.longitude.toFloat())
+        editor.apply()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -183,10 +242,48 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
         initializeLocationClient()
         val mapFrag = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
         mapFrag.getMapAsync(this)
+
+        val firestore_db = FirebaseFirestore.getInstance()
+        firestore_db.collection("ImagePosts").addSnapshotListener { snapshots, e ->
+            if (e != null) {
+                Log.e("UserHome", "Could not attach listener to ImagePosts: ${e.message}")
+                return@addSnapshotListener
+            }
+            for (docChange in snapshots!!.documentChanges) {
+                val docKey = docChange.document.id.replaceFirst("ImagePosts/", "")
+                when (docChange.type) {
+                    DocumentChange.Type.ADDED -> {
+                        Log.d("UserHome", "FireStore:: New post: ${docKey}")
+                        addPostModelToView(docKey, docChange.document)
+                    }
+                    DocumentChange.Type.MODIFIED -> {
+                        Log.d("UserHome", "FireStore:: Modified post: ${docKey}")
+                        val postModel = key_to_Post[docKey]
+                        if (postModel != null) {
+                            postModel.description = docChange.document.getString("description")!!
+                            postModel.url = docChange.document.getString("url")!!
+                            myRecyclerAdapter.notifyItemChanged(keyList.indexOf(docKey))
+                        }
+                    }
+                    DocumentChange.Type.REMOVED -> {
+                        Log.d("UserHome", "FireStore:: Removed post: ${docKey}")
+                        removePostModel(docKey, docChange.document)
+                    }
+                }
+            }
+        }
     }
 
     private fun initializeLocationClient() {
         Log.d("UserHome", "initializeLocationClient: Am I making it here?")
+
+        val sharedPrefs = getSharedPreferences("location", Context.MODE_PRIVATE)
+        val lastLatitude = sharedPrefs.getFloat("latitude", 0.0f).toDouble()
+        val lastLongitude = sharedPrefs.getFloat("longitude", 0.0f).toDouble()
+        val lastLocation = Location("provider")
+        lastLocation.latitude = lastLatitude
+        lastLocation.longitude = lastLongitude
+
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         val MAX_UPDATE_DELAY_INTERVAL: Long = 1000*1000 // 20 seconds
         val UPDATE_INTERVAL: Long = 10*1000 // 10 seconds
@@ -207,6 +304,7 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
                 newLocation(lastLocation!!)
             }
         }
+        newLocation(lastLocation)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
             && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -218,9 +316,8 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
             // for ActivityCompat#requestPermissions for more details.
             return
         }
-        Log.d("UserHome", "initializeLocationClient: Requesting location updates...")
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, locationCallback, Looper.getMainLooper())
-        Log.d("UserHome", "initializeLocationClient: Finished requesting location updates.")
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -243,6 +340,7 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
     }
 
     fun uploadNewPhoto(view: View) {
+        // Check if the device has a camera
         if (!packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) {
             Toast.makeText(this, "This feature requires a camera!", Toast.LENGTH_SHORT).show()
             return
@@ -291,7 +389,7 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQUEST_FOR_LOCATION) {
-            if (grantResults.size > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                     && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                         // TODO: Consider calling
@@ -325,5 +423,10 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
             return
         }
         mMap.isMyLocationEnabled = true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mFusedLocationClient.removeLocationUpdates(locationCallback)
     }
 }
