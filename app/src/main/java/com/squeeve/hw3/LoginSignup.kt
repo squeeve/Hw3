@@ -92,7 +92,6 @@ class LoginSignup : AppCompatActivity() {
             Toast.makeText(this, "Please enter your email and password", Toast.LENGTH_SHORT).show()
             return
         }
-
         mAuth.signInWithEmailAndPassword(email.text.toString(), password.text.toString())
             .addOnFailureListener { exception ->
                 Toast.makeText(
@@ -101,18 +100,19 @@ class LoginSignup : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             }.addOnSuccessListener {
-            if (currentUser == null) {
-                Toast.makeText(this, "An impossible error.. Please try again!", Toast.LENGTH_SHORT)
-                    .show()
-                return@addOnSuccessListener
-            }
-            if (currentUser!!.isEmailVerified) {
-                startActivity(Intent(this, UserHome::class.java))
-                finish()
-            } else {
-                Toast.makeText(this, "Please verify your email and re-log in.", Toast.LENGTH_SHORT)
-                    .show()
-            }
+                currentUser = mAuth.currentUser
+                if (currentUser == null) {
+                    Toast.makeText(this, "An impossible error.. Please try again!", Toast.LENGTH_SHORT)
+                        .show()
+                    return@addOnSuccessListener
+                }
+                if (currentUser!!.isEmailVerified) {
+                    startActivity(Intent(this, UserHome::class.java))
+                    finish()
+                } else {
+                    Toast.makeText(this, "Please verify your email and re-log in.", Toast.LENGTH_SHORT)
+                        .show()
+                }
         }
     }
 

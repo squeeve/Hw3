@@ -141,6 +141,8 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
         if (index == -1) {
             Log.d("UserHome", "removePostModel: Could not find post to remove.")
             return
+        } else {
+            Log.d("UserHome", "removePostModel: Found post to remove.")
         }
         val dSnap = snap.toObject(PhotoPreview.Post::class.java)
         if (dSnap == null) {
@@ -148,9 +150,9 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
             return
         }
         key_to_Post[postKey]?.m?.remove()
-        keyList.removeAt(index)
         key_to_Post.remove(postKey)
-        myRecyclerAdapter.notifyItemRemoved(keyList.indexOf(postKey))
+        keyList.removeAt(index)
+        myRecyclerAdapter.notifyItemRemoved(index)
     }
 
     fun newLocation(lastLocation: Location) {
@@ -186,7 +188,7 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
                     Log.i("UserHome", "onDataExited: Removing ${dSnap.key} @ $index")
                     firestore_db.collection("ImagePosts")
                         .document(dSnap.key!!).get().addOnSuccessListener { snap ->
-                            removePostModel(snap)
+                            removePostModel(dSnap.key!!, snap)
                         }.addOnFailureListener { e ->
                             Log.e("UserHome", "Error getting post ${e.message}")
                         }
@@ -329,6 +331,7 @@ class UserHome : AppCompatActivity(), OnMapReadyCallback, ItemClickListener {
         val itemId = item.itemId
         if (itemId == R.id.signout) {
             mAuth.signOut()
+            startActivity(Intent(this@UserHome, LoginSignup::class.java))
             finish()
             return true
         } else if (itemId == R.id.edit_profile) {
